@@ -1,0 +1,56 @@
+[
+  {
+    "id": 1,
+    "name": "Laptop",
+    "price": 45000,
+    "category": "Electronics",
+    "emoji": "💻",
+    "description": "A reliable laptop for study, work, and everyday tasks.",
+    "stock": 10
+  },
+  {
+    "id": 2,
+    "name": "Wireless Headphones",
+    "price": 1500,
+    "category": "Accessories",
+    "emoji": "🎧",
+    "description": "Comfortable wireless headphones for music and calls.",
+    "stock": 25
+  },
+  {
+    "id": 3,
+    "name": "Smart Watch",
+    "price": 2500,
+    "category": "Electronics",
+    "emoji": "⌚",
+    "description": "A smart watch for everyday activity and notifications.",
+    "stock": 18
+  },
+  {
+    "id": 4,
+    "name": "Mechanical Keyboard",
+    "price": 2200,
+    "category": "Accessories",
+    "emoji": "⌨️",
+    "description": "A responsive keyboard for coding and productivity.",
+    "stock": 15
+  },
+  {
+    "id": 5,
+    "name": "Bluetooth Speaker",
+    "price": 1800,
+    "category": "Audio",
+    "emoji": "🔊",
+    "description": "A compact speaker for your desk or room.",
+    "stock": 20
+  },
+  {
+    "id": 6,
+    "name": "Phone Stand",
+    "price": 450,
+    "category": "Accessories",
+    "emoji": "📱",
+    "description": "A handy stand for video calls and watching content.",
+    "stock": 29
+  }
+]

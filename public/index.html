@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="ShopEase demo e-commerce store built for a CodeAlpha full-stack internship project." />
+  <title>ShopEase | E-commerce Store</title>
+  <link rel="stylesheet" href="/style.css" />
+  <script src="/script.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="#" aria-label="ShopEase home">ShopEase<span>.</span></a>
+    <label class="search-wrap">
+      <span class="sr-only">Search products</span>
+      <span aria-hidden="true">⌕</span>
+      <input id="searchInput" type="search" placeholder="Search products..." />
+    </label>
+    <nav class="header-actions" aria-label="Main actions">
+      <button class="text-button" id="ordersButton" hidden>My orders</button>
+      <button class="text-button" id="authButton">Log in</button>
+      <button class="cart-button" id="cartButton">Cart <span id="cartCount">0</span></button>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">GOOD FINDS. EVERY DAY.</p>
+        <h1>Little things.<br /><span>Big difference.</span></h1>
+        <p class="hero-description">Discover useful tech and everyday essentials, all in one simple store.</p>
+        <a class="primary-link" href="#products">Explore products <span aria-hidden="true">↘</span></a>
+        <div class="hero-note"><span class="note-dot"></span> A student-built full-stack demo store</div>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <div class="art-orbit orbit-one"></div>
+        <div class="art-orbit orbit-two"></div>
+        <div class="art-card art-card-main"><span>🎧</span><small>DAILY ESSENTIALS</small><strong>Make it yours.</strong></div>
+        <div class="art-card art-card-mini"><span>⌚</span><div><small>SMART PICKS</small><strong>Made for you</strong></div></div>
+        <div class="art-spark spark-one">✳</div><div class="art-spark spark-two">✦</div>
+      </div>
+    </section>
+
+    <section class="benefits" aria-label="Store features">
+      <div><span class="benefit-icon">✧</span><span><strong>Curated products</strong><small>Simple, useful picks</small></span></div>
+      <div><span class="benefit-icon">♡</span><span><strong>Easy shopping</strong><small>Cart and order flow</small></span></div>
+      <div><span class="benefit-icon">✓</span><span><strong>Demo checkout</strong><small>No real payment taken</small></span></div>
+    </section>
+
+    <section class="products-section" id="products">
+      <div class="section-heading">
+        <div><p class="eyebrow">THE COLLECTION</p><h2>Find your favourite</h2><p class="section-subtitle">Good gear for work, study, and everything in between.</p></div>
+        <label class="category-filter"><span class="sr-only">Filter by category</span>
+          <select id="categoryFilter"><option value="">All categories</option></select>
+        </label>
+      </div>
+      <p class="status-message" id="productMessage" role="status">Loading products…</p>
+      <div class="product-grid" id="productGrid"></div>
+    </section>
+
+    <section class="cart-section" id="cartSection">
+      <div class="cart-heading"><div><p class="eyebrow">YOUR BAG</p><h2>Shopping cart</h2></div><span class="cart-caption">Your picks, all together.</span></div>
+      <div id="cartItems" class="cart-items"><p class="empty-state">Your cart is empty. Add something you like!</p></div>
+      <div class="cart-summary">
+        <p class="summary-note">Taxes and delivery are not included in this demo.</p>
+        <div class="summary-total"><span>Subtotal</span><strong id="cartTotal">₹0</strong></div>
+        <button class="primary-button" id="checkoutButton">Place demo order <span aria-hidden="true">→</span></button>
+      </div>
+    </section>
+
+    <section class="orders-section" id="ordersSection" hidden>
+      <div class="section-heading"><div><p class="eyebrow">ORDER HISTORY</p><h2>Your orders</h2></div></div>
+      <div id="ordersList" class="orders-list"></div>
+    </section>
+  </main>
+
+  <footer><a class="brand footer-brand" href="#">ShopEase<span>.</span></a><p>Created as a CodeAlpha Full Stack Development internship project.</p><small>Demo project only · No real payments are processed.</small></footer>
+
+  <div class="modal-backdrop" id="authModal" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+      <button class="modal-close" data-close="authModal" aria-label="Close dialog">×</button>
+      <p class="eyebrow">WELCOME TO SHOPEASE</p><h2 id="authTitle">Welcome back</h2><p class="modal-intro" id="authIntro">Log in to continue shopping.</p>
+      <div class="auth-tabs"><button id="loginTab" class="active">Log in</button><button id="registerTab">Create account</button></div>
+      <form id="authForm">
+        <label id="nameField" hidden>Full name<input id="authName" name="name" autocomplete="name" minlength="2" /></label>
+        <label>Email address<input id="authEmail" name="email" type="email" autocomplete="email" required /></label>
+        <label>Password<input id="authPassword" name="password" type="password" autocomplete="current-password" minlength="8" required /><small>Use at least 8 characters.</small></label>
+        <p class="form-message" id="authMessage" role="alert"></p>
+        <button class="primary-button full-button" id="authSubmit" type="submit">Log in</button>
+      </form>
+      <p class="privacy-note">Demo account details are stored locally in this project's JSON database.</p>
+    </section>
+  </div>
+
+  <div class="modal-backdrop" id="productModal" hidden>
+    <section class="modal product-modal" role="dialog" aria-modal="true" aria-labelledby="detailName">
+      <button class="modal-close" data-close="productModal" aria-label="Close dialog">×</button>
+      <div class="detail-icon" id="detailIcon">🛍️</div><p class="eyebrow" id="detailCategory"></p><h2 id="detailName">Product</h2><p id="detailDescription"></p><div class="detail-bottom"><strong id="detailPrice"></strong><button class="primary-button" id="detailAdd">Add to cart</button></div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
