@@ -6,7 +6,7 @@
     "category": "Electronics",
     "emoji": "💻",
     "description": "A reliable laptop for study, work, and everyday tasks.",
-    "stock": 10
+    "stock": 9
   },
   {
     "id": 2,
@@ -15,7 +15,7 @@
     "category": "Accessories",
     "emoji": "🎧",
     "description": "Comfortable wireless headphones for music and calls.",
-    "stock": 25
+    "stock": 24
   },
   {
     "id": 3,

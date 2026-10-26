@@ -2,9 +2,15 @@ const express = require("express");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+require("dotenv").config();
+const User = require("./models/User");
+const Product = require("./models/Product");
+const mongoose = require("mongoose");
+const Order = require("./models/Order");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const MONGODB_URI = process.env.MONGODB_URI;
 const DATA_DIR = path.join(__dirname, "data");
 
 app.use(express.json({ limit: "100kb" }));
@@ -56,12 +62,17 @@ function verifyPassword(password, salt, expectedHash) {
   return actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
 }
 
-function getUserFromRequest(req) {
+
+async function getUserFromRequest(req) {
   const header = req.headers.authorization || "";
-  const token = header.startsWith("Bearer ") ? header.slice(7) : "";
+  const token = header.startsWith("Bearer ")
+    ? header.slice(7)
+    : "";
+
   const userId = sessions.get(token);
   if (!userId) return null;
-  return readJson("users.json", []).find((user) => user.id === userId) || null;
+
+  return await User.findOne({ id: userId }).lean();
 }
 
 function publicUser(user) {
@@ -76,64 +87,169 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", message: "ShopEase API is running" });
 });
 
-app.get("/api/products", (req, res) => {
-  const products = readJson("products.json", []);
-  const query = String(req.query.search || "").trim().toLowerCase();
-  const category = String(req.query.category || "").trim().toLowerCase();
-  const filtered = products.filter((product) => {
-    const matchesQuery = !query || `${product.name} ${product.category} ${product.description}`.toLowerCase().includes(query);
-    const matchesCategory = !category || product.category.toLowerCase() === category;
-    return matchesQuery && matchesCategory;
-  });
-  res.json(filtered);
-});
 
-app.get("/api/products/:id", (req, res) => {
-  const product = readJson("products.json", []).find((item) => item.id === Number(req.params.id));
-  if (!product) return res.status(404).json({ message: "Product not found." });
-  res.json(product);
-});
+app.get("/api/products", async (req, res) => {
+  try {
+    const query = String(req.query.search || "").trim();
+    const category = String(req.query.category || "").trim();
 
-app.post("/api/auth/register", (req, res) => {
-  const name = String(req.body.name || "").trim();
-  const email = String(req.body.email || "").trim().toLowerCase();
-  const password = String(req.body.password || "");
+    const filter = {};
 
-  if (name.length < 2) return res.status(400).json({ message: "Name must contain at least 2 characters." });
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ message: "Enter a valid email address." });
-  if (password.length < 8) return res.status(400).json({ message: "Password must be at least 8 characters." });
+    if (query) {
+      filter.$or = [
+        { name: { $regex: query, $options: "i" } },
+        { category: { $regex: query, $options: "i" } },
+        { description: { $regex: query, $options: "i" } }
+      ];
+    }
 
-  const users = readJson("users.json", []);
-  if (users.some((user) => user.email === email)) return res.status(409).json({ message: "An account with this email already exists. Please log in." });
+    if (category) {
+      filter.category = {
+        $regex: `^${category}$`,
+        $options: "i"
+      };
+    }
 
-  const { salt, hash } = makePasswordHash(password);
-  const user = { id: crypto.randomUUID(), name, email, salt, passwordHash: hash, createdAt: new Date().toISOString() };
-  users.push(user);
-  writeJson("users.json", users);
-
-  const token = crypto.randomBytes(32).toString("hex");
-  sessions.set(token, user.id);
-  res.status(201).json({ message: "Account created successfully.", token, user: publicUser(user) });
-});
-
-app.post("/api/auth/login", (req, res) => {
-  const email = String(req.body.email || "").trim().toLowerCase();
-  const password = String(req.body.password || "");
-  const user = readJson("users.json", []).find((item) => item.email === email);
-
-  if (!user || !verifyPassword(password, user.salt, user.passwordHash)) {
-    return res.status(401).json({ message: "Invalid email or password." });
+    const products = await Product.find(filter).lean();
+    res.json(products);
+  } catch (error) {
+    console.error("Fetch products error:", error);
+    res.status(500).json({ message: "Could not fetch products." });
   }
-
-  const token = crypto.randomBytes(32).toString("hex");
-  sessions.set(token, user.id);
-  res.json({ message: "Logged in successfully.", token, user: publicUser(user) });
 });
 
-app.get("/api/auth/me", (req, res) => {
-  const user = getUserFromRequest(req);
-  if (!user) return res.status(401).json({ message: "Please log in." });
-  res.json({ user: publicUser(user) });
+
+app.get("/api/products/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({ message: "Invalid product ID." });
+    }
+
+    const product = await Product.findOne({ id }).lean();
+
+    if (!product) {
+      return res.status(404).json({ message: "Product not found." });
+    }
+
+    res.json(product);
+  } catch (error) {
+    console.error("Fetch product error:", error);
+    res.status(500).json({ message: "Could not fetch product." });
+  }
+});
+
+
+app.post("/api/auth/register", async (req, res) => {
+  try {
+    const name = String(req.body.name || "").trim();
+    const email = String(req.body.email || "").trim().toLowerCase();
+    const password = String(req.body.password || "");
+
+    if (name.length < 2) {
+      return res.status(400).json({
+        message: "Name must contain at least 2 characters."
+      });
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({
+        message: "Enter a valid email address."
+      });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({
+        message: "Password must be at least 8 characters."
+      });
+    }
+
+    const existingUser = await User.findOne({ email });
+
+    if (existingUser) {
+      return res.status(409).json({
+        message: "An account with this email already exists. Please log in."
+      });
+    }
+
+    const { salt, hash } = makePasswordHash(password);
+
+    const user = await User.create({
+      id: crypto.randomUUID(),
+      name,
+      email,
+      salt,
+      passwordHash: hash
+    });
+
+    const token = crypto.randomBytes(32).toString("hex");
+    sessions.set(token, user.id);
+
+    res.status(201).json({
+      message: "Account created successfully.",
+      token,
+      user: publicUser(user)
+    });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({
+        message: "An account with this email already exists. Please log in."
+      });
+    }
+
+    console.error("Registration error:", error);
+    res.status(500).json({
+      message: "Could not create account."
+    });
+  }
+});
+
+
+
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const email = String(req.body.email || "").trim().toLowerCase();
+    const password = String(req.body.password || "");
+
+    const user = await User.findOne({ email }).lean();
+
+    if (!user || !verifyPassword(password, user.salt, user.passwordHash)) {
+      return res.status(401).json({
+        message: "Invalid email or password."
+      });
+    }
+
+    const token = crypto.randomBytes(32).toString("hex");
+    sessions.set(token, user.id);
+
+    res.json({
+      message: "Logged in successfully.",
+      token,
+      user: publicUser(user)
+    });
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({
+      message: "Could not log in."
+    });
+  }
+});
+
+
+app.get("/api/auth/me", async (req, res) => {
+  try {
+    const user = await getUserFromRequest(req);
+
+    if (!user) {
+      return res.status(401).json({ message: "Please log in." });
+    }
+
+    res.json({ user: publicUser(user) });
+  } catch (error) {
+    console.error("Get user error:", error);
+    res.status(500).json({ message: "Could not fetch user." });
+  }
 });
 
 app.post("/api/auth/logout", (req, res) => {
@@ -143,65 +259,146 @@ app.post("/api/auth/logout", (req, res) => {
   res.json({ message: "Logged out." });
 });
 
-app.get("/api/orders", (req, res) => {
-  const user = getUserFromRequest(req);
-  if (!user) return res.status(401).json({ message: "Please log in to view your orders." });
-  const orders = readJson("orders.json", []).filter((order) => order.userId === user.id);
-  res.json(orders);
-});
 
-app.post("/api/orders", (req, res) => {
-  const user = getUserFromRequest(req);
-  if (!user) return res.status(401).json({ message: "Please log in before checkout." });
+app.get("/api/orders", async (req, res) => {
+  try {
+    const user = await getUserFromRequest(req);
 
-  const items = req.body.items;
-  if (!Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({ message: "Your cart is empty." });
-  }
-
-  const products = readJson("products.json", []);
-  const orderItems = [];
-  for (const requested of items) {
-    const product = products.find((item) => item.id === Number(requested.id));
-    const quantity = Number(requested.quantity);
-    if (!product || !Number.isInteger(quantity) || quantity < 1 || quantity > 99) {
-      return res.status(400).json({ message: "One or more cart items are invalid." });
+    if (!user) {
+      return res.status(401).json({
+        message: "Please log in to view your orders."
+      });
     }
-    if (quantity > product.stock) {
-      return res.status(400).json({ message: `${product.name} does not have enough stock.` });
-    }
-    orderItems.push({
-      productId: product.id,
-      name: product.name,
-      unitPrice: product.price,
-      quantity,
-      lineTotal: product.price * quantity
+
+    const orders = await Order.find({ userId: user.id })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.json(orders);
+  } catch (error) {
+    console.error("Fetch orders error:", error);
+    res.status(500).json({
+      message: "Could not fetch orders."
     });
   }
-
-  // Recalculate prices on the server; never trust totals sent by the browser.
-  const total = orderItems.reduce((sum, item) => sum + item.lineTotal, 0);
-  for (const orderItem of orderItems) {
-    const product = products.find((item) => item.id === orderItem.productId);
-    product.stock -= orderItem.quantity;
-  }
-  writeJson("products.json", products);
-
-  const orders = readJson("orders.json", []);
-  const order = {
-    id: `ORD-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(2).toString("hex").toUpperCase()}`,
-    userId: user.id,
-    customerName: user.name,
-    items: orderItems,
-    total,
-    status: "Confirmed (demo)",
-    createdAt: new Date().toISOString()
-  };
-  orders.push(order);
-  writeJson("orders.json", orders);
-
-  res.status(201).json({ message: "Order placed successfully (demo checkout).", order });
 });
+
+
+
+app.post("/api/orders", async (req, res) => {
+  const session = await mongoose.startSession();
+
+  try {
+    const user = await getUserFromRequest(req);
+
+    if (!user) {
+      return res.status(401).json({
+        message: "Please log in before checkout."
+      });
+    }
+
+    const items = req.body.items;
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        message: "Your cart is empty."
+      });
+    }
+
+    let order;
+
+    await session.withTransaction(async () => {
+      const orderItems = [];
+
+      for (const requested of items) {
+        const productId = Number(requested.id);
+        const quantity = Number(requested.quantity);
+
+        if (
+          !Number.isInteger(productId) ||
+          !Number.isInteger(quantity) ||
+          quantity < 1 ||
+          quantity > 99
+        ) {
+          throw Object.assign(
+            new Error("One or more cart items are invalid."),
+            { statusCode: 400 }
+          );
+        }
+
+        const product = await Product.findOne({ id: productId })
+          .session(session)
+          .lean();
+
+        if (!product) {
+          throw Object.assign(
+            new Error("One or more cart items are invalid."),
+            { statusCode: 400 }
+          );
+        }
+
+        const updatedProduct = await Product.findOneAndUpdate(
+          { id: productId, stock: { $gte: quantity } },
+          { $inc: { stock: -quantity } },
+          { new: true, session }
+        );
+
+        if (!updatedProduct) {
+          throw Object.assign(
+            new Error(`${product.name} does not have enough stock.`),
+            { statusCode: 400 }
+          );
+        }
+
+        orderItems.push({
+          productId: product.id,
+          name: product.name,
+          unitPrice: product.price,
+          quantity,
+          lineTotal: product.price * quantity
+        });
+      }
+
+      const total = orderItems.reduce(
+        (sum, item) => sum + item.lineTotal,
+        0
+      );
+
+      const orderData = {
+        id: `ORD-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(2).toString("hex").toUpperCase()}`,
+        userId: user.id,
+        customerName: user.name,
+        items: orderItems,
+        total,
+        status: "Confirmed (demo)",
+        createdAt: new Date()
+      };
+
+      const createdOrders = await Order.create(
+        [orderData],
+        { session }
+      );
+
+      order = createdOrders[0].toObject();
+    });
+
+    res.status(201).json({
+      message: "Order placed successfully (demo checkout).",
+      order
+    });
+  } catch (error) {
+    console.error("Place order error:", error);
+
+    res.status(error.statusCode || 500).json({
+      message: error.statusCode
+        ? error.message
+        : "Could not place order."
+    });
+  } finally {
+    await session.endSession();
+  }
+});
+
 
 app.use((req, res, next) => {
   if (req.path.startsWith("/api/")) return next();
@@ -217,6 +414,22 @@ app.use((error, req, res, next) => {
   res.status(500).json({ message: "An unexpected server error occurred." });
 });
 
-app.listen(PORT, () => {
-  console.log(`ShopEase is running at http://localhost:${PORT}`);
-});
+async function startServer() {
+  try {
+    if (!MONGODB_URI) {
+      throw new Error("MONGODB_URI missing. Check your .env file.");
+    }
+
+    await mongoose.connect(MONGODB_URI);
+    console.log("MongoDB connected successfully!");
+
+    app.listen(PORT, () => {
+      console.log(`ShopEase is running at http://localhost:${PORT}`);
+    });
+  } catch (error) {
+    console.error("Startup failed:", error.message);
+    process.exit(1);
+  }
+}
+
+startServer();
