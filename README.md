@@ -28,7 +28,7 @@ A beginner-friendly full-stack e-commerce demo project for the CodeAlpha Full St
 
 ## Run on Windows / VS Code
 
-1. Extract the ZIP file.
+1. create folder CodeAlpha_EcommerceStore
 2. Open the `CodeAlpha_EcommerceStore` folder in VS Code.
 3. Open **Terminal → New Terminal**.
 4. Install dependencies:
